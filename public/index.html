@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jira Clone + MCP | Agile Project Management</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230052cc'><path d='M11.53 2c0 2.4 1.97 4.35 4.4 4.35h1.78v1.74c0 2.4 1.97 4.35 4.4 4.35V2h-10.58zm-4.4 5.22c0 2.4 1.97 4.35 4.4 4.35h1.78v1.74c0 2.4 1.97 4.35 4.4 4.35V7.22H7.13zm-4.4 5.22c0 2.4 1.97 4.35 4.4 4.35h1.78v1.74c0 2.4 1.97 4.35 4.4 4.35V12.44H2.73z'/></svg>">
+</head>
+<body>
+
+  <!-- AUTH SCREEN (Shown when logged out) -->
+  <div id="auth-screen" class="auth-container" style="display: none;">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-icon">J</div>
+        <span>Jira Software</span>
+      </div>
+
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="auth.switchTab('login')">Sign In</div>
+        <div class="auth-tab" id="tab-register" onclick="auth.switchTab('register')">Create Account</div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="form-login" onsubmit="auth.handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label required">Email Address</label>
+          <input type="email" id="login-email" class="form-input" placeholder="alex@company.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Password</label>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; margin-top: 8px;">
+          Log In
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="form-register" style="display: none;" onsubmit="auth.handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label required">Full Name</label>
+          <input type="text" id="reg-name" class="form-input" placeholder="Sarah Connor" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Email Address</label>
+          <input type="email" id="reg-email" class="form-input" placeholder="sarah@company.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Password (min 6 chars)</label>
+          <input type="password" id="reg-password" class="form-input" placeholder="••••••••" minlength="6" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; margin-top: 8px;">
+          Create Free Account
+        </button>
+      </form>
+
+      <!-- Quick Demo Login -->
+      <div class="demo-account-box">
+        <strong>⚡ 1-Click Demo Access:</strong>
+        <p style="margin: 4px 0 8px 0; color: var(--text-subtle);">Preloaded with projects, tasks & MCP agent capabilities.</p>
+        <button type="button" class="demo-account-btn" onclick="auth.quickDemoLogin('alex@company.com', 'password123')">
+          Log in as Alex (Product Lead)
+        </button>
+        <button type="button" class="demo-account-btn" style="margin-top: 6px;" onclick="auth.quickDemoLogin('sarah@company.com', 'password123')">
+          Log in as Sarah (Senior Dev)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="app" style="display: flex;">
+
+    <!-- TOP NAV -->
+    <header class="top-nav">
+      <div class="nav-left">
+        <a href="#" class="logo-container" onclick="app.switchView('board')">
+          <div class="logo-icon">J</div>
+          <span>Jira</span>
+        </a>
+
+        <div class="nav-divider"></div>
+
+        <div class="project-select-wrapper">
+          <select id="project-selector" onchange="app.handleProjectChange(this.value)">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <button class="btn btn-subtle btn-sm" onclick="modal.openCreateProject()" title="Create New Project">
+          + New Project
+        </button>
+
+        <button class="btn btn-primary" onclick="modal.openCreateIssue()" title="Create Issue (C)">
+          + Create
+        </button>
+      </div>
+
+      <div class="nav-center">
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="global-search" class="search-input" placeholder="Search issues (summary, key)..." oninput="app.handleSearch(this.value)">
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- MCP Status & Drawer trigger -->
+        <button class="btn btn-mcp" onclick="app.switchView('mcp')" title="Model Context Protocol tools & settings">
+          🤖 MCP Tools
+        </button>
+
+        <!-- Database status indicator -->
+        <div id="db-status-pill" class="status-pill status-memory" title="Checking database...">
+          <span class="dot dot-yellow"></span>
+          <span id="db-status-text">Connecting...</span>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <!-- User Profile Pill -->
+        <div class="user-menu-btn" onclick="auth.handleLogoutPrompt()" title="Click to Logout">
+          <img id="user-avatar" class="avatar" src="https://api.dicebear.com/7.x/initials/svg?seed=U" alt="avatar">
+          <span id="user-display-name" style="font-weight: 600; font-size: 13px;">User</span>
+          <span style="font-size: 11px; color: var(--text-subtle);">🚪</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- WRAPPER -->
+    <div class="main-wrapper">
+
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="project-brief">
+            <div class="project-avatar" id="sidebar-proj-avatar">P</div>
+            <div>
+              <div class="project-name-sidebar" id="sidebar-proj-name">Loading...</div>
+              <div class="project-type-sidebar">Software Project</div>
+            </div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="sidebar-section-title">Planning</div>
+          <div class="nav-item active" id="nav-item-board" onclick="app.switchView('board')">
+            <span class="nav-item-icon">📋</span>
+            <span>Kanban Board</span>
+          </div>
+          <div class="nav-item" id="nav-item-backlog" onclick="app.switchView('backlog')">
+            <span class="nav-item-icon">📝</span>
+            <span>Backlog</span>
+          </div>
+          <div class="nav-item" id="nav-item-issues" onclick="app.switchView('issues')">
+            <span class="nav-item-icon">📑</span>
+            <span>All Issues</span>
+          </div>
+
+          <div class="sidebar-section-title" style="margin-top: 14px;">Reports & Stats</div>
+          <div class="nav-item" id="nav-item-metrics" onclick="app.switchView('metrics')">
+            <span class="nav-item-icon">📊</span>
+            <span>Project Metrics</span>
+          </div>
+
+          <div class="sidebar-section-title" style="margin-top: 14px;">AI Automation</div>
+          <div class="nav-item" id="nav-item-mcp" onclick="app.switchView('mcp')">
+            <span class="nav-item-icon">🤖</span>
+            <span>MCP Server & Tools</span>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div style="font-weight: 600; margin-bottom: 4px;">Project Team</div>
+          <div id="project-members-list" style="display: flex; gap: 4px; flex-wrap: wrap;">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- CONTENT AREA -->
+      <main class="content-area">
+
+        <!-- VIEW HEADER -->
+        <div class="view-header">
+          <div class="breadcrumbs">
+            Projects / <span id="breadcrumb-project">Core Platform</span> / <span id="breadcrumb-view">Kanban Board</span>
+          </div>
+          <div class="view-title-row">
+            <h1 class="view-title" id="current-view-title">Kanban Board</h1>
+            <div id="view-actions">
+              <!-- Context actions populated via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- QUICK FILTER BAR -->
+        <div class="filter-bar" id="filter-bar">
+          <span style="font-size: 12px; font-weight: 600; color: var(--text-subtle);">Quick filters:</span>
+          <div class="filter-pill" id="filter-my-issues" onclick="app.toggleFilter('myIssues')">Only My Issues</div>
+          <div class="filter-pill" id="filter-type-story" onclick="app.toggleFilter('type', 'Story')">Stories</div>
+          <div class="filter-pill" id="filter-type-bug" onclick="app.toggleFilter('type', 'Bug')">Bugs</div>
+          <div class="filter-pill" id="filter-type-task" onclick="app.toggleFilter('type', 'Task')">Tasks</div>
+          <div class="filter-pill" id="filter-high-priority" onclick="app.toggleFilter('priority', 'High')">High Priority</div>
+          <button class="btn btn-subtle btn-sm" id="btn-clear-filters" style="display: none;" onclick="app.clearFilters()">Clear Filters</button>
+        </div>
+
+        <!-- 1. KANBAN BOARD VIEW -->
+        <div id="view-board" class="board-container">
+          <!-- Columns will be rendered dynamically -->
+        </div>
+
+        <!-- 2. BACKLOG VIEW -->
+        <div id="view-backlog" class="backlog-container" style="display: none;">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- 3. ALL ISSUES VIEW -->
+        <div id="view-issues" class="backlog-container" style="display: none;">
+          <table style="width: 100%; border-collapse: collapse; background: #fff; border-radius: 4px; overflow: hidden; box-shadow: var(--shadow-sm);">
+            <thead>
+              <tr style="background: #f4f5f7; border-bottom: 2px solid var(--border-color); text-align: left; font-size: 12px; color: var(--text-subtle);">
+                <th style="padding: 10px 14px;">Key</th>
+                <th style="padding: 10px 14px;">Summary</th>
+                <th style="padding: 10px 14px;">Type</th>
+                <th style="padding: 10px 14px;">Status</th>
+                <th style="padding: 10px 14px;">Priority</th>
+                <th style="padding: 10px 14px;">Assignee</th>
+                <th style="padding: 10px 14px;">Points</th>
+              </tr>
+            </thead>
+            <tbody id="issues-table-body">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 4. METRICS / STATS VIEW -->
+        <div id="view-metrics" class="backlog-container" style="display: none;">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-subtle);">TOTAL ISSUES</div>
+              <div class="stat-num" id="stat-total-issues">0</div>
+            </div>
+            <div class="stat-card">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-subtle);">COMPLETION RATE</div>
+              <div class="stat-num" id="stat-completion-pct" style="color: #36b37e;">0%</div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="stat-progress-bar" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-subtle);">STORY POINTS DONE</div>
+              <div class="stat-num" id="stat-story-points">0 / 0</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="stat-card">
+              <h3 style="font-size: 14px; margin-bottom: 14px;">Issues by Status</h3>
+              <div id="stat-status-breakdown"></div>
+            </div>
+            <div class="stat-card">
+              <h3 style="font-size: 14px; margin-bottom: 14px;">Issues by Type</h3>
+              <div id="stat-type-breakdown"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. MCP AGENT PLAYGROUND & CONFIG -->
+        <div id="view-mcp" class="backlog-container" style="display: none;">
+          <div style="background: #fff; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <h2 style="font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                🤖 Model Context Protocol (MCP) Server
+                <span class="status-pill status-atlas">Active & Ready</span>
+              </h2>
+            </div>
+            <p style="color: var(--text-subtle); line-height: 1.6; margin-bottom: 16px;">
+              This Jira application includes native MCP server support. AI agents like <strong>Claude Desktop</strong>,
+              <strong>Antigravity</strong>, and <strong>Cursor</strong> can list projects, query issues, create tickets,
+              transition statuses, and post comments autonomously!
+            </p>
+
+            <h3 style="font-size: 14px; margin-bottom: 8px;">1. Connect Claude Desktop / Antigravity</h3>
+            <p style="font-size: 12px; color: var(--text-subtle); margin-bottom: 8px;">
+              Add this to your MCP configuration file (e.g. <code>claude_desktop_config.json</code>):
+            </p>
+            <pre class="code-block" id="mcp-config-snippet">{
+  "mcpServers": {
+    "jira-clone": {
+      "command": "node",
+      "args": ["/Users/bharath/Desktop/jiraClon/server/mcp/stdio.js"]
+    }
+  }
+}</pre>
+            <button class="btn btn-secondary btn-sm" style="margin-top: 8px;" onclick="mcp.copyConfig()">📋 Copy Config JSON</button>
+
+            <div style="margin-top: 24px;">
+              <h3 style="font-size: 14px; margin-bottom: 8px;">2. HTTP & SSE Endpoints</h3>
+              <ul style="font-size: 13px; color: var(--text-main); line-height: 1.8; margin-left: 20px;">
+                <li><strong>Tools Schema:</strong> <code>GET /api/mcp/tools</code></li>
+                <li><strong>JSON-RPC 2.0:</strong> <code>POST /api/mcp/rpc</code></li>
+                <li><strong>SSE Stream:</strong> <code>GET /api/mcp/sse</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Interactive MCP Tool Tester -->
+          <div style="background: #fff; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <h2 style="font-size: 16px; margin-bottom: 14px;">🧪 Test MCP Tool Call Live</h2>
+            <div class="form-row">
+              <div class="form-group" style="flex: 1;">
+                <label class="form-label">Select MCP Tool</label>
+                <select id="mcp-tool-select" class="form-select" onchange="mcp.handleToolSelect(this.value)">
+                  <!-- Populated via JS -->
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Arguments (JSON)</label>
+              <textarea id="mcp-tool-args" class="form-textarea" style="font-family: monospace; font-size: 13px; height: 110px;">{}</textarea>
+            </div>
+
+            <button class="btn btn-primary" onclick="mcp.executeTool()">🚀 Run Tool via MCP</button>
+
+            <div style="margin-top: 16px;">
+              <label class="form-label">Result Response</label>
+              <pre class="code-block" id="mcp-tool-result" style="max-height: 250px;">// Output will appear here</pre>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE ISSUE -->
+  <div class="modal-overlay" id="modal-create-issue">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 class="modal-title">Create Issue</h2>
+        <button class="close-btn" onclick="modal.close('modal-create-issue')">&times;</button>
+      </div>
+      <form onsubmit="modal.handleCreateIssue(event)">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label required">Project</label>
+              <select id="create-issue-project" class="form-select" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label required">Issue Type</label>
+              <select id="create-issue-type" class="form-select" required>
+                <option value="Story">📗 Story</option>
+                <option value="Task" selected>📘 Task</option>
+                <option value="Bug">📕 Bug</option>
+                <option value="Epic">⚡ Epic</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Summary</label>
+            <input type="text" id="create-issue-summary" class="form-input" placeholder="e.g., Implement OAuth2 login flow" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="create-issue-description" class="form-textarea" placeholder="Describe the steps, criteria, or context..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select id="create-issue-priority" class="form-select">
+                <option value="Highest">⬆️ Highest</option>
+                <option value="High">🔼 High</option>
+                <option value="Medium" selected>🟰 Medium</option>
+                <option value="Low">🔽 Low</option>
+                <option value="Lowest">⬇️ Lowest</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Story Points</label>
+              <input type="number" id="create-issue-points" class="form-input" min="0" max="100" placeholder="e.g., 3">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Assignee</label>
+              <select id="create-issue-assignee" class="form-select">
+                <option value="">Unassigned</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Labels (comma-separated)</label>
+              <input type="text" id="create-issue-labels" class="form-input" placeholder="frontend, auth, p1">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="modal.close('modal-create-issue')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ISSUE DETAIL -->
+  <div class="modal-overlay" id="modal-issue-detail">
+    <div class="modal-box modal-large">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="detail-type-badge" class="issue-type-icon type-Task">T</span>
+          <span id="detail-issue-key" style="font-weight: 700; color: var(--text-subtle);">KEY-1</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-subtle btn-sm btn-danger" onclick="modal.deleteCurrentIssue()">Delete</button>
+          <button class="close-btn" onclick="modal.close('modal-issue-detail')">&times;</button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 24px;">
+        <div class="issue-detail-grid">
+          <!-- Main Left Column -->
+          <div class="detail-main">
+            <input type="text" id="detail-summary" class="summary-editable" onblur="modal.saveSummary(this.value)">
+
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="detail-description" class="form-textarea" placeholder="Add a more detailed description..." onblur="modal.saveDescription(this.value)"></textarea>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="comments-section">
+              <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 14px;">Activity & Comments</h3>
+              
+              <div id="comments-list">
+                <!-- Rendered dynamically -->
+              </div>
+
+              <!-- Add Comment Input -->
+              <div style="display: flex; gap: 12px; margin-top: 14px;">
+                <img id="comment-current-avatar" class="avatar" src="https://api.dicebear.com/7.x/initials/svg?seed=U" alt="avatar">
+                <div style="flex: 1;">
+                  <textarea id="new-comment-input" class="form-textarea" style="min-height: 70px; margin-bottom: 8px;" placeholder="Add a comment..."></textarea>
+                  <button class="btn btn-primary btn-sm" onclick="modal.postComment()">Save Comment</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Right Column -->
+          <div class="detail-side">
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select id="detail-status" class="form-select" onchange="modal.updateField('status', this.value)">
+                <option value="Backlog">Backlog</option>
+                <option value="To Do">To Do</option>
+                <option value="In Progress">In Progress</option>
+                <option value="In Review">In Review</option>
+                <option value="Done">Done</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Assignee</label>
+              <select id="detail-assignee" class="form-select" onchange="modal.updateField('assignee', this.value || null)">
+                <option value="">Unassigned</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select id="detail-priority" class="form-select" onchange="modal.updateField('priority', this.value)">
+                <option value="Highest">⬆️ Highest</option>
+                <option value="High">🔼 High</option>
+                <option value="Medium">🟰 Medium</option>
+                <option value="Low">🔽 Low</option>
+                <option value="Lowest">⬇️ Lowest</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Story Points</label>
+              <input type="number" id="detail-points" class="form-input" min="0" max="100" onchange="modal.updateField('storyPoints', this.value ? Number(this.value) : null)">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Reporter</label>
+              <div id="detail-reporter" style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                <img id="detail-reporter-avatar" class="avatar" style="width: 20px; height: 20px;" src="" alt="">
+                <span id="detail-reporter-name">Reporter</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE PROJECT -->
+  <div class="modal-overlay" id="modal-create-project">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Create New Project</h2>
+        <button class="close-btn" onclick="modal.close('modal-create-project')">&times;</button>
+      </div>
+      <form onsubmit="modal.handleCreateProject(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label required">Project Name</label>
+            <input type="text" id="project-name-input" class="form-input" placeholder="e.g. NextGen Web App" oninput="modal.suggestProjectKey(this.value)" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Project Key (2-6 letters)</label>
+            <input type="text" id="project-key-input" class="form-input" placeholder="e.g. NEXT" uppercase maxlength="10" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="project-desc-input" class="form-textarea" placeholder="What is this project about?"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="modal.close('modal-create-project')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- SCRIPTS -->
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/board.js"></script>
+  <script src="/js/backlog.js"></script>
+  <script src="/js/modal.js"></script>
+  <script src="/js/mcp.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
+

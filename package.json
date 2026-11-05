@@ -1,0 +1,31 @@
+{
+  "name": "jira-clone-mcp",
+  "version": "1.0.0",
+  "description": "Minimal Jira-like app with MongoDB Atlas, HTML/CSS/JS frontend, and MCP (Model Context Protocol) support",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "mcp": "node server/mcp/stdio.js",
+    "seed": "node server/utils/seedData.js"
+  },
+  "keywords": [
+    "jira",
+    "kanban",
+    "mcp",
+    "model-context-protocol",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5"
+  }
+}
+
